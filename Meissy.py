@@ -1,213 +1,348 @@
+import re
 import konlpy
 from konlpy.tag import Okt
-import re
-from pykospacing import Spacing
-
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
 import urllib.request
-from sklearn.model_selection import train_test_split
+
+
 from tensorflow.keras.preprocessing.text import Tokenizer
 from tensorflow.keras.preprocessing.sequence import pad_sequences
+from tensorflow.keras.utils import to_categorical
+from sklearn.model_selection import train_test_split
+from soyspacing.countbase import CountSpace
 
-import seaborn as sns
-from keras.utils import to_categorical
 
-#특수문자 처리
-def clean_str(text):
-    pattern = '([a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)' # E-mail제거
-    text = re.sub(pattern=pattern, repl='', string=text)
-    pattern = '(http|ftp|https)://(?:[-\w.]|(?:%[\da-fA-F]{2}))+' # URL제거
-    text = re.sub(pattern=pattern, repl='', string=text)
-    pattern = '([ㄱ-ㅎㅏ-ㅣ]+)'  # 한글 자음, 모음 제거
-    text = re.sub(pattern=pattern, repl='', string=text)
-    pattern = '<[^>]*>'         # HTML 태그 제거
-    text = re.sub(pattern=pattern, repl='', string=text)
-    pattern = '[^\w\s\n]'         # 특수기호제거
-    text = re.sub(pattern=pattern, repl='', string=text)
-    text = re.sub('[-=+,#/\?:^$.@*\"※~&%ㆍ!』\\‘|\(\)\[\]\<\>`\'…》]','', string=text)
-    text = re.sub('\n', '.', string=text)
-    # text = text.replace(' ','')
-    return text 
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Embedding, LSTM, Bidirectional, TimeDistributed
+from tensorflow.keras.optimizers import Adam
 
-#int, str, 혼합 구분
-def decide_kind(text) :
-  flag = True
-  str_flag = False
-  int_flag = False
 
-  for var in text:
-    try:
-      int(var)
-      int_flag = True
-    except ValueError:
-      str_flag = True
+#dictionary 만들기
+def make_predefined_dictionaries() :
+  stopwords = open("/home/ubuntu/python_test/library/stopwords.txt","r")
+  #stopwords = open("/content/saebyeok/stopwords.txt","r")
+  stopwords = stopwords.readlines()
 
-  if int_flag and str_flag :
-    return 2
-  elif int_flag :
-    return 1
-  else :
-    return 0
+
+  dic_stopword = [stopword.replace('\n','') for stopword in stopwords if stopword.startswith('#') == False and len(stopword.strip()) > 0]
+
+
+  names = open("/home/ubuntu/python_test/library/name.train.txt","r")
+  #names = open("/content/saebyeok/name.train.txt","r")
+  names = names.readlines()
+
+
+  dic_names = [name.replace('\n','').split()[0] for name in names if name.startswith('#') == False and len(name.strip()) > 0]
+
+
+  chains = open("/home/ubuntu/python_test/library/chain.train.txt","r")
+  #chains = open("/content/saebyeok/chain.train.txt","r")
+  chains = chains.readlines()
+
+
+  dic_chains = [chain.replace('\n','').split()[0] for chain in chains if chain.startswith('#') == False and len(chain.strip()) > 0]
+
+
+  dic_phone_numbers = open("/home/ubuntu/python_test/library/phone.train.txt","r")
+  #dic_phone_numbers = open("/content/saebyeok/phone.train.txt","r")
+  dic_phone_numbers = dic_phone_numbers.readlines()
+
+
+  dic_phone_numbers = [phone_number.replace('\n','').split()[0] for phone_number in dic_phone_numbers if phone_number.startswith('#') == False and len(phone_number.strip()) > 0]
+
+
+  return [dic_stopword, dic_names, dic_chains, dic_phone_numbers]
+
+
+#전처리
+def spacing(text) :
+  spacing_model = CountSpace()
+  spacing_model.load_model("/home/ubuntu/python_test/model/spacing",json_format=False)
+  corrected_sentence, tag = spacing_model.correct(text)
+
+
+  return corrected_sentence
   
-#임시 데이터 generation 더 많은 데이터를 생성할 수 있는 방법을 생각해야 할듯
-# Program to generate a random number between 0 and 9
-# importing the random module
-import random
-
-#날짜 값
-for i in range(1,13) : 
-  date_words.append(str(i))
-  date_words.append(str(i) + "월")
-  for j in range(1,32) :
-    date_words.append(str(j))
-    date_words.append(str(i) + "월" + str(j) + "일")
-
-for i in range(1, 100) :
-  phone_number.append(['','010' + str(random.randint(9999999,100000000))])
-
-for i in range(1, 100) :
-  phone_number.append(['',str(random.randint(9999999,100000000))])
-  
- #테스트 데이터 생성
-data = []
-
-for op in operators :
-  np_op = np.array(op)
-  section_name = clean_str(str(np_op[0]))
-  data.append([section_name, len(section_name), decide_kind(section_name), 'section'])
-  for op_name in np_op[1:] :
-    operator_name = clean_str(op_name)
-    last_two_name = clean_str(op_name[1:])
-    data.append([clean_str(op_name),len(operator_name), decide_kind(operator_name), 'name'])
-    data.append([last_two_name,len(last_two_name), decide_kind(last_two_name), 'name'])
+def clean(text) :
+  pattern = '([a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)'
+  text = re.sub(pattern=pattern, repl='', string=text)
+  pattern= '(http|ftp|https)://(?:[-\w.]|(?:%[\da-fA-F]{2}))+'
+  text = re.sub(pattern=pattern, repl='', string=text)
+  pattern = '([ㄱ-ㅎㅏ-ㅣ]+)'
+  text = re.sub(pattern=pattern, repl='', string=text)
+  pattern = '<[^>]*>'
+  text = re.sub(pattern=pattern, repl='', string=text)
+  pattern = '[^\w\s\n]'
+  text = re.sub(pattern=pattern, repl='', string=text)
 
 
-for number in phone_number :
-  number_name = number[1]
-  last_four_number = number[1][-4:]
-  data.append([number_name, len(number_name),decide_kind(number_name), 'number'])
-  data.append([last_four_number, 4, decide_kind(last_four_number), 'number'])
-
-for date_word in date_words :
-  date_name = clean_str(date_word)
-  data.append([date_name, len(date_name),decide_kind(date_name), 'date'])
+  return text
 
 
-df = pd.DataFrame(data,columns = ['input','inputLength','type','class'])
-
-df.isnull().values.any() #결측값체크
-df['input'].replace('',np.nan,inplace=True)
-df['class'].replace('',np.nan,inplace=True)
-df.drop_duplicates(subset=['input'], inplace=True) #중복제거
-df.dropna(subset=['input'], inplace=True) #중복제거
+def get_morphs(text) :
+  dic_stopword, dic_names, dic_chains, dic_phone_numbers = make_predefined_dictionaries()
 
 
-def getClassEncoding(string) : 
-  if string == "name" : 
-    return 0
-  elif string == "section" :
-    return 1
-  elif string == "number" :
-    return 2
-  else :
-    return 3
+  text = clean(text)
+  text = spacing(text)
 
-def getInputEncoding(string) :
-  test = 0
-  for name in string :
-    test += ord(name)
-  return test
 
-df['raw'] = df.apply(lambda x : x['input'], axis=1 )
-df['class'] = df.apply(lambda x : getClassEncoding(x['class']), axis=1)
-df['input'] = df.apply(lambda x : getInputEncoding(x['input']), axis=1 )
-
-#데이터 전처리
-def get_morphs(input_text) :
-  #띄어쓰기
-  spacing = Spacing()
-  inputText = spacing(input_text)
-
-  print(inputText)
-
-  #형태소 끊기
   okt = Okt()
-  nouns = okt.morphs(inputText)
+  nouns = okt.morphs(text)
 
-  print("nons : ",nouns)
-  #stop_words처리
-  stop_words = ["검색", "찾아", "찾아줘"]
 
-  #한자리 이하 제거
-  preprocessed_words = []
+  #걸러내기 : 한글자 이하 / 욕설, 성적인 언급 등 제외
+  preprocessed_words=[]
   for noun in nouns :
-    if (noun in stop_words) :
-      return
-    if len(noun) > 1 :
-      preprocessed_words.append(noun)
+      if len(noun) > 1 and noun not in dic_stopword :
+          preprocessed_words.append(noun)
+
 
   return preprocessed_words
+  
+def rule_based(nouns) :
+  dic_stopword, dic_names, dic_chains, dic_phone_numbers = make_predefined_dictionaries()
 
-#모델 구현
-count_ratio = df.groupby('class').size().reset_index(name='count')
-is_name_ratio = round(df["class"].value_counts()[0] / len(data) * 100, 3)
-is_section_ratio = round(df["class"].value_counts()[1] / len(data) * 100, 3)
-is_number_ratio = round(df["class"].value_counts()[2] / len(data) * 100, 3)
-is_date_ratio = round(df["class"].value_counts()[3] / len(data) * 100, 3)
 
-print(count_ratio)
-print("데이터 중 이름이 차지하는 비율 : ",is_name_ratio)
-print("데이터 중 섹션이 차지하는 비율 : ",is_section_ratio)
-print("데이터 중 숫자 차지하는 비율 : ",is_number_ratio)
-print("데이터 중 날짜가 차지하는 비율 : ",is_date_ratio)
+  rule_result = []
+  remove_target = []
 
-data_X = df[['input','inputLength','type']].values
-data_y = df['class'].values
 
-print(data_X[:5])
-print(data_y[:5])
+  #주어진 명사가 두글자에서 세글자사이라면 이름을 체크
+  for noun in nouns :
+    if len(noun) <= 3 :
+      r = re.compile(".*{0}.*".format(noun))
+      matched_name = list(filter(r.match,dic_names))
+      if len(matched_name) > 0 :
+        rule_result.append({'entity' : 'B_PS', 'value' : matched_name[0]})
+        remove_target.append(noun)
 
-(X_train, X_test, y_train, y_test) = train_test_split(data_X, data_y, train_size=0.7, random_state=1)
 
-# 원-핫 인코딩
-y_train = to_categorical(y_train)
-y_test = to_categorical(y_test)
+  for target in remove_target :
+    nouns.remove(target)
 
-print(y_train[:5])
-print(y_test[:5])
 
-from keras.models import Sequential
-from keras.layers import Dense
 
-model = Sequential()
-model.add(Dense(4, input_dim=3, activation='softmax'))
-model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
-history = model.fit(X_train, y_train, epochs=200, batch_size=1, validation_data=(X_test, y_test))
 
-#손실율 확인
-epochs = range(1, len(history.history['accuracy']) + 1)
-plt.plot(epochs, history.history['loss'])
-plt.plot(epochs, history.history['val_loss'])
-plt.title('model loss')
-plt.ylabel('loss')
-plt.xlabel('epoch')
-plt.legend(['train', 'val'], loc='upper left')
-plt.show()
+  #체인으로 체크
+  remove_target = []
 
-#활용
-preprocessed_words = get_morphs(clean_str("01027403096 추새벽 전화번호 맞아?"))
-for word in preprocessed_words :
-  input_name = clean_str(word);
-  input_type = decide_kind(input_name)
-  input_length = len(input_name)
-  text_input = getInputEncoding(input_name)
 
-  matrix = [text_input, input_length, input_type]
-  result = model.predict([matrix])
-  array = np.array(result[0])
+  for noun in nouns : 
+    r = re.compile(".*{0}.*".format(noun.upper()))
+    matched_chain = list(filter(r.match,dic_chains))
+    if len(matched_chain) > 0 :
+      rule_result.append({'entity' : 'B_OG', 'value' : matched_chain[0]})
+      remove_target.append(noun)
+  
+  for target in remove_target :
+    nouns.remove(target)
 
-  print(input_name)
-  print(matrix)
-  print(result)
+
+
+
+  #전화번호와 년도가 잘 되지 않는 군
+  #숫자로만 이루어져 있으면 전화번호로 분류
+  remove_target = []
+
+
+  for noun in nouns : 
+    if noun.isnumeric():
+      rule_result.append({'entity' : 'B_PN', 'value' : noun})
+      remove_target.append(noun)
+  for target in remove_target :
+    nouns.remove(target)
+
+
+
+
+  #월, 일, 년이 들어가 있으면 날짜로 분
+  remove_target = []
+
+
+  for noun in nouns : 
+    if re.match('.*[월|일|년].*', noun):
+      rule_result.append({'entity' : 'B_DT', 'value' : noun})
+      remove_target.append(noun)
+
+
+  for target in remove_target :
+    nouns.remove(target)
+
+
+  return rule_result
+
+
+#모델 학습
+def train() :
+  tagged_sentences =[]
+  sentence = []
+
+
+  sentences = open("/home/ubuntu/python_test/library/ner_dataset.txt","r")
+  #sentences = open("/content/saebyeok/ner_dataset.txt","r")
+  sentences = sentences.readlines()
+
+
+  for s in sentences :
+    if s.startswith(';') or s.startswith('$') or s.startswith('#') or len(s.strip())==0 :
+      if len(sentence) > 0 :
+        tagged_sentences.append(sentence)
+        sentence = []
+      continue
+
+
+    s.replace('\n','')
+    s = s.split('\t')
+    if len(s) != 4 :
+      continue
+
+
+    sentence.append([s[1].lower(),s[3].replace('\n','')])
+
+
+  sentences, ner_tags = [],[]
+
+
+  for tagged_sentence in tagged_sentences :
+      sen, tag_info = zip(*tagged_sentence)
+      sentences.append(list(sen))
+      ner_tags.append(list(tag_info))
+
+
+
+
+  vocab_size = len(sentences)
+  src_tokenizer = Tokenizer(num_words = vocab_size, oov_token='OOV')
+  src_tokenizer.fit_on_texts(sentences)
+
+
+  tar_tokenizer = Tokenizer()
+  tar_tokenizer.fit_on_texts(ner_tags)
+
+
+  tag_size = len(tar_tokenizer.word_index) + 1
+
+
+  X_train = src_tokenizer.texts_to_sequences(sentences)
+  y_train = tar_tokenizer.texts_to_sequences(ner_tags)
+
+
+  index_to_word = src_tokenizer.index_word
+  index_to_ner = tar_tokenizer.index_word
+
+
+  decoded = []
+  for index in X_train[0] :
+    decoded.append(index_to_word[index])
+
+
+  max_len=70
+  X_train = pad_sequences(X_train, padding='post', maxlen=max_len)
+  y_train = pad_sequences(y_train, padding='post', maxlen=max_len)
+
+
+  X_train, X_test, y_train, y_test = train_test_split(X_train, y_train, test_size=.2, random_state=777)
+
+
+  y_train = to_categorical(y_train, num_classes = tag_size)
+  y_test = to_categorical(y_test, num_classes = tag_size)
+
+
+  embedding_dim = 128
+  hidden_units = 128
+
+
+  model = Sequential()
+  model.add(Embedding(input_dim=vocab_size, output_dim=embedding_dim, input_length=max_len, mask_zero=True))
+  model.add(Bidirectional(LSTM(hidden_units, return_sequences=True)))
+  model.add(TimeDistributed(Dense(tag_size, activation='softmax')))
+
+
+  model.compile(loss='categorical_crossentropy', optimizer=Adam(0.001), metrics=['accuracy'])
+  model.fit(X_train,y_train,batch_size=128,epochs=8,validation_data=(X_test,y_test))
+
+
+  model.save('/home/ubuntu/python_test/meissy0.02')
+  #model.save('/content/saebyeok/meissy0.02')
+
+
+def predict(text) :
+  from tensorflow import keras
+
+
+  index_to_ner = {1: 'o', 2: 'i', 3: 'b_dt', 4: 'b_og', 5: 'b_ps', 6: 'b_lc', 7: 'b_ti'}
+
+
+  rule_based_result = []
+  predict_result = []
+
+
+  #rule based
+  nouns = get_morphs(text)
+  rule_based_result = rule_based(nouns)
+
+
+  if len(nouns) == 0 :
+    return rule_based_result
+
+
+  tagged_sentences =[]
+  sentence = []
+
+
+  sentences = open("/home/ubuntu/python_test/library/ner_dataset.txt","r")
+  #sentences = open("/content/saebyeok/ner_dataset.txt","r")
+  sentences = sentences.readlines()
+
+
+  for s in sentences :
+    if s.startswith(';') or s.startswith('$') or s.startswith('#') or len(s.strip())==0 :
+      if len(sentence) > 0 :
+        tagged_sentences.append(sentence)
+        sentence = []
+      continue
+
+
+    s.replace('\n','')
+    s = s.split('\t')
+    if len(s) != 4 :
+      continue
+
+
+    sentence.append([s[1].lower(),s[3].replace('\n','')])
+
+
+  sentences = []
+
+
+  for tagged_sentence in tagged_sentences :
+      sen, tag_info = zip(*tagged_sentence)
+      sentences.append(list(sen))
+
+
+  vocab_size = len(sentences)
+  src_tokenizer = Tokenizer(num_words = vocab_size, oov_token='OOV')
+  src_tokenizer.fit_on_texts(sentences)
+
+
+
+
+  predict_target = src_tokenizer.texts_to_sequences([nouns])
+  predict_target = pad_sequences( predict_target, padding='post', maxlen=70)
+
+
+  loded_model = keras.models.load_model('/home/ubuntu/python_test/meissy0.02')
+  y_predicted = loded_model.predict(np.array([predict_target[0]]))
+  y_predicted = np.argmax(y_predicted,axis=-1)
+  
+  index = 0
+  for word, pred in zip( predict_target[0], y_predicted[0]) :
+    if word != 0 :
+      predict_result.append({"entity" : index_to_ner[pred].upper(), "value" : nouns[index]})
+    index = index + 1
+  
+  return predict_result + rule_based_result
+
+
