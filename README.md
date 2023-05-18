@@ -4,7 +4,15 @@ Meissy는 0.01버전으로 시그모이드 함수를 사용하여 NER(Name Entit
 
 아래와 같이 실행할 수 있습니다.
 
-_입력_
+Requirements
+
+```css
+- re
+- soyspacing
+- tensorflow
+```
+
+입력
 
 ```css
 python3.9 messiy.py "이 표에서 장철수의 전화번호를 찾아줘"
