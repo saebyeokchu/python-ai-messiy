@@ -53,7 +53,7 @@ Messiy is designed to work seamlessly with:
 
 ## 📦 Future Plans
 
-- ✅ Developed word breakdown
+- ✅ Improved NER system for meissy
 - 🌍 i18n & localization
 
 ---
