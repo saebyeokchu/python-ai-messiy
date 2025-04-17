@@ -1,8 +1,3 @@
-Absolutely! Based on the repo name `messiy` and assuming it's a project you're developing (possibly related to messaging or user interaction — please correct me if it’s something else), here's a **professional and adaptable `README.md`** template that you can paste directly into your GitHub repository:
-
----
-
-```markdown
 # ⚡ Messiy
 
 **Messiy** is a lightweight, extensible platform for building real-time messaging and interaction features. Built with scalability and developer experience in mind, it can serve as a foundation for chat apps, comment systems, or collaborative tools.
