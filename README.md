@@ -1,14 +1,6 @@
 # ⚡ Messiy
 
-**Messiy** is a lightweight, extensible platform for building real-time messaging and interaction features. Built with scalability and developer experience in mind, it can serve as a foundation for chat apps, comment systems, or collaborative tools.
-
-This code builds a hybrid NER system for Korean text that:
-
-Uses rules and dictionaries for high-precision extraction of common patterns
-
-Falls back to a trained deep learning model for general entity recognition
-
-Useful in chatbots, document tagging, information extraction, and more
+**Messiy** is a lightweight, extensible library for building real-time messaging and interaction features. Built with scalability and developer experience in mind, it can serve as a foundation for chat apps, comment systems, or collaborative tools.
 
 > 🛠️ Built by [@saebyeokchu](https://github.com/saebyeokchu)
 
@@ -16,12 +8,10 @@ Useful in chatbots, document tagging, information extraction, and more
 
 ## 🌟 Features
 
-- 💬 Real-time messaging system (WebSocket/Socket.IO ready)
-- 🧩 Modular structure with clean code architecture
-- 🔐 Basic user authentication & session management
-- 🗃️ Scalable data models (TypeScript + ORM)
-- 📦 Ready for REST or GraphQL API expansion
-- 🔄 Designed for frontend integrations (React, Next.js, etc.)
+- 💬 A hybrid NER system for Korean text
+- 🧩 Uses rules and dictionaries for high-precision extraction of common patterns
+- 🔐 Falls back to a trained deep learning model for general entity recognition
+- 🗃️ Useful in chatbots, document tagging, information extraction, and more
 
 ---
 
@@ -29,15 +19,9 @@ Useful in chatbots, document tagging, information extraction, and more
 
 ```bash
 messiy/
-├── src/
-│   ├── controllers/   # Handle API or socket events
-│   ├── models/        # User, message, room schemas
-│   ├── services/      # Business logic layer
-│   ├── routes/        # Express route definitions
-│   └── index.ts       # App entry point
-├── .env
-├── package.json
-└── README.md
+├── CountAllCase.py
+├── FindEveryPatternInArray.py
+└── Meissy.py
 ```
 
 ---
@@ -51,26 +35,10 @@ git clone https://github.com/saebyeokchu/messiy.git
 cd messiy
 ```
 
-### 2. Install Dependencies
+### 2. Run the App
 
 ```bash
-npm install
-```
-
-### 3. Set Environment Variables
-
-Create a `.env` file:
-
-```env
-PORT=3000
-DATABASE_URL=your_database_url
-JWT_SECRET=your_secret
-```
-
-### 4. Run the App
-
-```bash
-npm run dev
+py Meissy.py [excel file which has sentence by line]
 ```
 
 ---
@@ -79,18 +47,13 @@ npm run dev
 
 Messiy is designed to work seamlessly with:
 
-- RESTful endpoints (`/messages`, `/users`, etc.)
-- WebSockets (Socket.IO or WS) for live communication
 - Frontends like React, Vue, or mobile apps
 
 ---
 
 ## 📦 Future Plans
 
-- ✅ Group chats and threads
-- 🔐 OAuth & third-party logins
-- 📱 Push notifications
-- 📊 Admin dashboard (Next.js or SvelteKit)
+- ✅ Developed word breakdown
 - 🌍 i18n & localization
 
 ---
